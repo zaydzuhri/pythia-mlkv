@@ -14,12 +14,16 @@
 # limitations under the License.
 """Tokenization classes for GPTNeoX."""
 import json
-from typing import Optional, Tuple
+from typing import TYPE_CHECKING, List, Optional, Tuple
 
 from tokenizers import pre_tokenizers
 
 from transformers.tokenization_utils_fast import PreTrainedTokenizerFast
 from transformers.utils import logging
+
+
+if TYPE_CHECKING:
+    from transformers.pipelines.conversational import Conversation
 
 
 logger = logging.get_logger(__name__)
@@ -45,14 +49,12 @@ class GPTNeoXTokenizerFast(PreTrainedTokenizerFast):
     This tokenizer has been trained to treat spaces like parts of the tokens (a bit like sentencepiece) so a word will
     be encoded differently whether it is at the beginning of the sentence (without space) or not:
 
-    ```python
+    ```
     >>> from transformers import GPTNeoXTokenizerFast
-
     >>> tokenizer = GPTNeoXTokenizerFast.from_pretrained("gpt2")
-    >>> tokenizer("Hello world")["input_ids"]
+    >>> tokenizer("Hello world")['input_ids']
     [15496, 995]
-
-    >>> tokenizer(" Hello world")["input_ids"]
+    >>> tokenizer(" Hello world")['input_ids']
     [18435, 995]
     ```
 
@@ -104,7 +106,7 @@ class GPTNeoXTokenizerFast(PreTrainedTokenizerFast):
         bos_token="<|endoftext|>",
         eos_token="<|endoftext|>",
         add_prefix_space=False,
-        **kwargs,
+        **kwargs
     ):
         super().__init__(
             vocab_file,
@@ -129,16 +131,12 @@ class GPTNeoXTokenizerFast(PreTrainedTokenizerFast):
         files = self._tokenizer.model.save(save_directory, name=filename_prefix)
         return tuple(files)
 
-    @property
-    # Copied from transformers.models.gpt2.tokenization_gpt2.GPT2Tokenizer.default_chat_template
-    def default_chat_template(self):
-        """
-        A simple chat template that ignores role information and just concatenates messages with EOS tokens.
-        """
-        logger.warning_once(
-            "\nNo chat template is defined for this tokenizer - using the default template "
-            f"for the {self.__class__.__name__} class. If the default is not appropriate for "
-            "your model, please set `tokenizer.chat_template` to an appropriate template. "
-            "See https://huggingface.co/docs/transformers/main/chat_templating for more information.\n"
-        )
-        return "{% for message in messages %}" "{{ message.content }}{{ eos_token }}" "{% endfor %}"
+    def _build_conversation_input_ids(self, conversation: "Conversation") -> List[int]:
+        """This corresponds to DialoGPT variants of models."""
+        input_ids = []
+        for is_user, text in conversation.iter_texts():
+            input_ids.extend(self.encode(text, add_special_tokens=False) + [self.eos_token_id])
+
+        if len(input_ids) > self.model_max_length:
+            input_ids = input_ids[-self.model_max_length :]
+        return input_ids
