@@ -24,8 +24,6 @@ def main(
     # add new params
     config["num_key_value_heads"] = num_key_value_heads
     config["num_key_value_layers"] = num_key_value_layers
-    # save new config
-    json.dump(config, open(output_path+"/config.json", "w"))
     # load old weights
     state_dict = torch.load(weights_path+"/pytorch_model.bin", map_location="cpu")
     # not only do we need to merge the kv heads,
@@ -137,8 +135,50 @@ def main(
             del state_dict[f"gpt_neox.layers.{i}.attention.key.bias"]
             del state_dict[f"gpt_neox.layers.{i}.attention.value.weight"]
             del state_dict[f"gpt_neox.layers.{i}.attention.value.bias"]
+    # lastly we need to account for the lost parameters by beefing up the MLPs in all layers
+    # calculate the total number of parameters lost in conversion first
+    print("total heads before:", config['num_attention_heads'] * config['num_hidden_layers'])
+    print("total heads after:", config['num_key_value_heads'] * config['num_key_value_layers'])
+    num_heads_lost = (config['num_attention_heads'] * config['num_hidden_layers']) - (config['num_key_value_heads'] * config['num_key_value_layers'])
+    print("num_heads_lost:", num_heads_lost)
+    num_params_lost = num_heads_lost * (config['hidden_size'] * head_size * 2 + head_size * 2)
+    print("num_params_lost:", num_params_lost)
+    num_params_needed_layer = num_params_lost // config['num_hidden_layers']
+    # now we need to upsize the intermediate layers of the MLPs by some amount
+    # calculate the closest multiple of hidden_size that is nearest to the number of parameters lost
+    # this is the amount we need to increase the intermediate size by
+    intermediate_addition = int(round(num_params_needed_layer / config['hidden_size']))
+    # add the intermediate_addition to the intermediate_size
+    old_intermediate_size = config['intermediate_size']
+    config['intermediate_size'] += intermediate_addition // 2 # there are 2 layers in the MLP
+    print("intermediate_size increased by", intermediate_addition // 2)
+    # initialize larger intermediate weights and biases, then put the old weights and biases in a slice of them
+    for i in range(num_layers):
+        # get the weights
+        intermediate_weight_in = state_dict[f"gpt_neox.layers.{i}.mlp.dense_h_to_4h.weight"]
+        intermediate_weight_out = state_dict[f"gpt_neox.layers.{i}.mlp.dense_4h_to_h.weight"]
+        intermediate_bias_in = state_dict[f"gpt_neox.layers.{i}.mlp.dense_h_to_4h.bias"]
+        # initialize new weights and biases
+        intermediate_weight_in_new = torch.zeros(config['intermediate_size'], config['hidden_size'])
+        intermediate_weight_out_new = torch.zeros(config['hidden_size'], config['intermediate_size'])
+        intermediate_bias_in_new = torch.zeros(config['intermediate_size'])
+        # put the old weights and biases in the new ones
+        intermediate_weight_in_new[:old_intermediate_size,:] = intermediate_weight_in
+        intermediate_weight_out_new[:,:old_intermediate_size] = intermediate_weight_out
+        intermediate_bias_in_new[:old_intermediate_size] = intermediate_bias_in
+        # fill zeros with some part of the old weights and biases
+        intermediate_weight_in_new[old_intermediate_size:, :] = intermediate_weight_in[:(config['intermediate_size']-old_intermediate_size), :]
+        intermediate_weight_out_new[:, old_intermediate_size:] = intermediate_weight_out[:, :(config['intermediate_size']-old_intermediate_size)]
+        intermediate_bias_in_new[old_intermediate_size:] = intermediate_bias_in[:(config['intermediate_size']-old_intermediate_size)]
+        # save them
+        state_dict[f"gpt_neox.layers.{i}.mlp.dense_h_to_4h.weight"] = intermediate_weight_in_new
+        state_dict[f"gpt_neox.layers.{i}.mlp.dense_4h_to_h.weight"] = intermediate_weight_out_new
+        state_dict[f"gpt_neox.layers.{i}.mlp.dense_h_to_4h.bias"] = intermediate_bias_in_new
+
     # save the new weights
     torch.save(state_dict, output_path+"/pytorch_model.bin")
+    # save new config
+    json.dump(config, open(output_path+"/config.json", "w"))
     # copy all the other files
     files = os.listdir(weights_path)
     for file in files:

@@ -15,7 +15,7 @@
 """ PyTorch GPTNeoX model."""
 
 from typing import Optional, Tuple, Union
-
+import sys # remove later
 import torch
 import torch.utils.checkpoint
 from torch import nn
@@ -561,6 +561,8 @@ class GPTNeoXModel(GPTNeoXPreTrainedModel):
         # Add last hidden state
         if output_hidden_states:
             all_hidden_states = all_hidden_states + (hidden_states,)
+
+        # print('presents', len(presents), presents[0][0].shape, sys.getsizeof(presents[0][0].untyped_storage())*len(presents)*len(presents[0]) / 1024 / 1024, 'MB')
 
         if not return_dict:
             return tuple(v for v in [hidden_states, presents, all_hidden_states, all_attentions] if v is not None)

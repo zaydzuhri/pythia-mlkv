@@ -61,18 +61,18 @@ def main(args):
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "left"
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
-    train_steps = args.max_train_steps if args.max_train_steps else len(train_dataset) // (args.gradient_accumulate_every * args.batch_size)
+    train_steps = args.max_train_steps if args.max_train_steps != -1 else len(train_dataset) // (args.gradient_accumulate_every * args.batch_size)
     
     trainer_args = TrainingArguments(
         output_dir=args.output_dir,
         per_device_train_batch_size=args.batch_size,
-        max_steps=train_steps,
+        max_steps=args.max_train_steps,
         gradient_accumulation_steps=args.gradient_accumulate_every,
         # per_device_eval_batch_size=32,
         # evaluation_strategy="steps",
         # eval_steps=5_000,
         logging_steps=5,
-        save_steps=train_steps//10,
+        # save_steps=train_steps//10,
         num_train_epochs=1,
         weight_decay=0.01,
         warmup_steps=args.warmup_steps,
@@ -109,7 +109,7 @@ if __name__ == "__main__":
     args.add_argument("--output-dir", type=str, required=True)
     args.add_argument("--wandb", type=str)
     args.add_argument("--seed", type=int, default=42)
-    args.add_argument("--max-train-steps", type=int, default=None)
+    args.add_argument("--max-train-steps", type=int, default=-1)
     args.add_argument("--warmup-steps", type=int, default=20)
     args.add_argument("--learning-rate", type=float, default=2e-5)
     args.add_argument("--grad-norm", action="store_true")

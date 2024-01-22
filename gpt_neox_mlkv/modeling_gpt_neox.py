@@ -15,7 +15,7 @@
 """ PyTorch GPTNeoX model."""
 
 from typing import Optional, Tuple, Union
-
+import sys # remove later
 import torch
 import torch.utils.checkpoint
 from torch import nn
@@ -619,6 +619,18 @@ class GPTNeoXModel(GPTNeoXPreTrainedModel):
         # Add last hidden state
         if output_hidden_states:
             all_hidden_states = all_hidden_states + (hidden_states,)
+
+        # print('presents', len(presents), presents[0][0].shape, sys.getsizeof(presents[0][0].untyped_storage())*len(presents)*len(presents[0]) / 1024 / 1024, 'MB')
+        # if all_hidden_states is not None:
+        #     print('all_hidden_states', len(all_hidden_states), all_hidden_states[0].shape, sys.getsizeof(all_hidden_states[0].untyped_storage())*len(all_hidden_states) / 1024 / 1024, 'MB')
+        # if all_attentions is not None:
+        #     print('all_attentions', len(all_attentions), all_attentions[0].shape, sys.getsizeof(all_attentions[0].untyped_storage())*len(all_attentions) / 1024 / 1024, 'MB')
+        # if hidden_states is not None:
+        #     print('hidden_states', hidden_states.shape, sys.getsizeof(hidden_states.untyped_storage()) / 1024 / 1024, 'MB')
+        # print('passed_key_value', len(passed_key_value), passed_key_value[0][0].shape, sys.getsizeof(passed_key_value[0][0].untyped_storage())*len(passed_key_value)*len(passed_key_value[0]) / 1024 / 1024, 'MB')
+        # print('input_ids', input_ids.shape, sys.getsizeof(input_ids.untyped_storage()) / 1024 / 1024, 'MB')
+        # print('attention_mask', attention_mask.shape, sys.getsizeof(attention_mask.untyped_storage()) / 1024 / 1024, 'MB')
+        # print('inputs_embeds', inputs_embeds.shape, sys.getsizeof(inputs_embeds.untyped_storage()) / 1024 / 1024, 'MB')
 
         if not return_dict:
             return tuple(v for v in [hidden_states, presents, all_hidden_states, all_attentions] if v is not None)
