@@ -12,12 +12,12 @@ from fire import Fire
 
 def main(
     weights_path: str,
-    num_key_value_heads: int,
     num_key_value_layers: int,
+    num_key_value_heads: int,
     output_path: str = None,
 ):
     if output_path is None:
-        output_path = weights_path + "_mlkv_" + str(num_key_value_heads) + "_" + str(num_key_value_layers)
+        output_path = weights_path + "_mlkv_" + str(num_key_value_layers) + "_" + str(num_key_value_heads)
         if not os.path.exists(output_path):
             os.mkdir(output_path)
     config = json.load(open(weights_path+"/config.json"))

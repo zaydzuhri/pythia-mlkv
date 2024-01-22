@@ -4,7 +4,6 @@ import copy
 import torch
 from datasets import load_dataset, load_from_disk, DatasetDict
 from datetime import timedelta
-from tqdm import tqdm
 from transformers import set_seed, DataCollatorForLanguageModeling, AutoTokenizer, Trainer, TrainingArguments
 
 # from gpt_neox_mlkv import GPTNeoXForCausalLM, GPTNeoXConfig
