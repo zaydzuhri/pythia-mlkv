@@ -51,7 +51,7 @@ def main(args):
     # if args.truncate:
     #     def truncate(sample):
     #         sample["input_ids"] = sample["input_ids"][0:args.truncate]
-    #         sample["attention_mask"] = sample["attention_mask"][0:args.truncate]
+    #         # sample["attention_mask"] = sample["attention_mask"][0:args.truncate]
     #         return sample
     #     train_dataset = train_dataset.map(
     #         truncate, desc="Truncating", num_proc=args.num_proc)
@@ -71,7 +71,7 @@ def main(args):
         # evaluation_strategy="steps",
         # eval_steps=5_000,
         logging_steps=5,
-        # save_steps=train_steps//10,
+        save_steps=train_steps//10,
         num_train_epochs=1,
         weight_decay=0.01,
         warmup_steps=args.warmup_steps,
