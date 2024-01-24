@@ -34,5 +34,5 @@ Here are all the 6 configs needed for all experiments:
 The dataset has been prepared to Huggingface, so you can directly uptrain:
 
 ```bash
-python3 uptrain.py --output-dir pythia-160m-mlkv-12 --model ../pythia-160m-deduped_mlkv_4_3 --batch-size 32 --learning-rate 6e-4 --warmup-steps 1000 --gradient-accumulate-every 4 --wandb pythia-160m-mlkv-12-v1
+python3 uptrain.py --output-dir pythia-160m-mlkv-12 --model pythia-160m-deduped_mlkv_4_3 --batch-size 32 --learning-rate 6e-4 --warmup-steps 1000 --gradient-accumulate-every 4 --wandb pythia-160m-mlkv-12-v1
 ```
