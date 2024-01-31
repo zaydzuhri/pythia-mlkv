@@ -49,13 +49,13 @@ def main(args):
     if "attention_mask" in train_dataset.column_names:
         train_dataset = train_dataset.remove_columns('attention_mask')
     
-    if args.truncate:
-        def truncate(sample):
-            sample["input_ids"] = sample["input_ids"][0:args.truncate]
-            # sample["attention_mask"] = sample["attention_mask"][0:args.truncate]
-            return sample
-        train_dataset = train_dataset.map(
-            truncate, desc="Truncating", num_proc=args.num_proc)
+    # if args.truncate:
+    #     def truncate(sample):
+    #         sample["input_ids"] = sample["input_ids"][0:args.truncate]
+    #         # sample["attention_mask"] = sample["attention_mask"][0:args.truncate]
+    #         return sample
+    #     train_dataset = train_dataset.map(
+    #         truncate, desc="Truncating", num_proc=args.num_proc)
 
     tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=True)
     tokenizer.pad_token = tokenizer.eos_token
