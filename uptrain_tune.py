@@ -71,7 +71,7 @@ def main(args):
         # per_device_eval_batch_size=32,
         # evaluation_strategy="no",
         # eval_steps=5_000,
-        # logging_steps=5,
+        logging_steps=5,
         # save_steps=train_steps,
         save_strategy='no',
         num_train_epochs=0.005,
@@ -107,7 +107,7 @@ def main(args):
             "parameters": {
                 "learning_rate": {"values": [6e-4, 3e-4, 1e-4]},
                 # "per_device_train_batch_size": {"values": [1, 2, 3]},
-                "gradient_accumulation_steps": {"values": [1, 24, 48]},
+                "gradient_accumulation_steps": {"values": [1, 2, 4]},
                 "warmup_steps": {"values": [train_steps//20, train_steps//10, train_steps//5]},
             },
         }
