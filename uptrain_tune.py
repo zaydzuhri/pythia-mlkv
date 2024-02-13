@@ -58,8 +58,8 @@ def main(args):
     #         truncate, desc="Truncating", num_proc=args.num_proc)
 
     tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=True)
-    tokenizer.pad_token = tokenizer.eos_token
-    tokenizer.padding_side = "left"
+    tokenizer.pad_token = "<|padding|>"
+    tokenizer.pad_token_id = 1
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
     train_steps = args.max_train_steps if args.max_train_steps != -1 else len(train_dataset) // (args.gradient_accumulate_every * args.batch_size)
     
@@ -67,14 +67,14 @@ def main(args):
         output_dir=args.output_dir,
         per_device_train_batch_size=args.batch_size,
         max_steps=args.max_train_steps,
-        gradient_accumulation_steps=args.gradient_accumulate_every,
+        # gradient_accumulation_steps=args.gradient_accumulate_every,
         # per_device_eval_batch_size=32,
         # evaluation_strategy="no",
         # eval_steps=5_000,
         logging_steps=5,
         # save_steps=train_steps,
         save_strategy='no',
-        num_train_epochs=0.005,
+        num_train_epochs=0.05,
         weight_decay=0.01,
         warmup_steps=args.warmup_steps,
         lr_scheduler_type=args.lr_schedule,
@@ -105,10 +105,9 @@ def main(args):
             "method": "grid",
             "metric": {"name": "loss", "goal": "minimize"},
             "parameters": {
-                "learning_rate": {"values": [6e-4, 3e-4, 1e-4]},
-                # "per_device_train_batch_size": {"values": [1, 2, 3]},
-                "gradient_accumulation_steps": {"values": [1, 2, 4]},
-                "warmup_steps": {"values": [train_steps//20, train_steps//10, train_steps//5]},
+                "learning_rate": {"values": [3e-4, 1e-4, 5e-5]},
+                "gradient_accumulation_steps": {"values": [2, 4, 8]},
+                "warmup_steps": {"values": [0, 100, 500]},
             },
         }
 
@@ -129,7 +128,7 @@ def main(args):
 
 if __name__ == "__main__":
     args = argparse.ArgumentParser()
-    args.add_argument("--batch-size", type=int, default=1)
+    args.add_argument("--batch-size", type=int, default=16)
     args.add_argument("--gradient-accumulate-every", type=int, default=8)
     args.add_argument("--resume-from-checkpoint", type=str)
     args.add_argument("--checkpointing-steps", type=int)
