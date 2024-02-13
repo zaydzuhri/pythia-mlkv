@@ -36,6 +36,11 @@ def main(args):
         config=config
     )
 
+    tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=True)
+    tokenizer.pad_token = "<|padding|>"
+    tokenizer.pad_token_id = 1
+    # tokenizer.padding_side = "left"
+
     try:
         train_dataset = load_dataset(args.dataset)
     except:
@@ -56,9 +61,6 @@ def main(args):
         train_dataset = train_dataset.map(
             truncate, desc="Truncating", num_proc=args.num_proc)
 
-    tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=True)
-    tokenizer.pad_token = tokenizer.eos_token
-    tokenizer.padding_side = "left"
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
     train_steps = args.max_train_steps if args.max_train_steps != -1 else len(train_dataset) // (args.gradient_accumulate_every * args.batch_size)
     
@@ -71,8 +73,8 @@ def main(args):
         # evaluation_strategy="steps",
         # eval_steps=5_000,
         logging_steps=5,
-        save_steps=train_steps//10,
-        num_train_epochs=1,
+        save_steps=train_steps//50,
+        num_train_epochs=0.2,
         weight_decay=0.01,
         warmup_steps=args.warmup_steps,
         lr_scheduler_type=args.lr_schedule,
@@ -116,7 +118,7 @@ if __name__ == "__main__":
                       default="pythia-160m-deduped_mlkv")
     args.add_argument("--truncate", type=int, default=None)
     args.add_argument("--dataset", type=str,
-                      default="zaydzuhri/the_pile_tokenized_5percent_truncated")
+                      default="zaydzuhri/the_pile_tokenized_5percent_truncated_packed")
     args.add_argument("--deepspeed", action="store_true")
     args.add_argument("--num-proc", type=int, default=32)
     args.add_argument("--lr-schedule", type=str,
