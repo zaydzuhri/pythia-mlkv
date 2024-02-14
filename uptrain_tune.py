@@ -74,7 +74,7 @@ def main(args):
         logging_steps=5,
         # save_steps=train_steps,
         save_strategy='no',
-        num_train_epochs=0.05,
+        num_train_epochs=0.04,
         weight_decay=0.01,
         warmup_steps=args.warmup_steps,
         lr_scheduler_type=args.lr_schedule,
@@ -143,7 +143,7 @@ if __name__ == "__main__":
                       default="pythia-160m-deduped_mlkv")
     args.add_argument("--truncate", type=int, default=None)
     args.add_argument("--dataset", type=str,
-                      default="zaydzuhri/the_pile_tokenized_5percent_truncated")
+                      default="zaydzuhri/the_pile_tokenized_5percent_truncated_packed")
     args.add_argument("--deepspeed", action="store_true")
     args.add_argument("--num-proc", type=int, default=32)
     args.add_argument("--lr-schedule", type=str,
