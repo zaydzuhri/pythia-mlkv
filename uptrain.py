@@ -73,8 +73,8 @@ def main(args):
         # evaluation_strategy="steps",
         # eval_steps=5_000,
         logging_steps=5,
-        save_steps=train_steps//50,
-        num_train_epochs=0.2,
+        save_steps=train_steps//5,
+        num_train_epochs=1,
         weight_decay=0.01,
         warmup_steps=args.warmup_steps,
         lr_scheduler_type=args.lr_schedule,
@@ -103,16 +103,16 @@ def main(args):
 
 if __name__ == "__main__":
     args = argparse.ArgumentParser()
-    args.add_argument("--batch-size", type=int, default=1)
-    args.add_argument("--gradient-accumulate-every", type=int, default=8)
+    args.add_argument("--batch-size", type=int, default=16)
+    args.add_argument("--gradient-accumulate-every", type=int, default=4)
     args.add_argument("--resume-from-checkpoint", type=str)
     args.add_argument("--checkpointing-steps", type=int)
     args.add_argument("--output-dir", type=str, required=True)
     args.add_argument("--wandb", type=str)
     args.add_argument("--seed", type=int, default=42)
     args.add_argument("--max-train-steps", type=int, default=-1)
-    args.add_argument("--warmup-steps", type=int, default=20)
-    args.add_argument("--learning-rate", type=float, default=2e-5)
+    args.add_argument("--warmup-steps", type=int, default=100)
+    args.add_argument("--learning-rate", type=float, default=3e-4)
     args.add_argument("--grad-norm", action="store_true")
     args.add_argument("--model", type=str,
                       default="pythia-160m-deduped_mlkv")
