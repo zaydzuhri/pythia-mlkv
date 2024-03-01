@@ -36,6 +36,10 @@ def main(args):
         config=config
     )
 
+    if args.freeze_embeds:
+        model.gpt_neox.embed_in.weight.requires_grad = False
+        model.embed_out.weight.requires_grad = False
+
     tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=True)
     tokenizer.pad_token = "<|padding|>"
     tokenizer.pad_token_id = 1
@@ -125,5 +129,5 @@ if __name__ == "__main__":
                       choices=["linear", "constant", "cosine"], default="cosine")
     args.add_argument("--save-only", action="store_true")
     args.add_argument("--log-loss", type=str)
-    # args.add_argument("--freeze", action="store_true")
+    args.add_argument("--freeze-embeds", action="store_true")
     main(args.parse_args())
