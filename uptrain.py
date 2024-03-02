@@ -32,7 +32,6 @@ def main(args):
 
     model = model_cls.from_pretrained(
         args.model,
-        torch_dtype=torch.bfloat16,
         config=config
     )
 
@@ -80,12 +79,18 @@ def main(args):
         save_steps=train_steps//5,
         num_train_epochs=1,
         weight_decay=0.01,
-        warmup_steps=args.warmup_steps,
+        # warmup_steps=args.warmup_steps,
+        warmup_ratio=args.warmup_ratio,
         lr_scheduler_type=args.lr_schedule,
         learning_rate=args.learning_rate,
         # gradient_checkpointing=True,
         # save_steps=args.checkpointing_steps,
         # bf16=True,
+        fp16=True,
+        optim='adamw_torch',
+        adam_beta1=0.9,
+        adam_beta2=0.95,
+        adam_epsilon=1e-8,
         # push_to_hub=True,
         report_to="wandb" if args.wandb else "none",
         # report_to="none",
@@ -115,8 +120,9 @@ if __name__ == "__main__":
     args.add_argument("--wandb", type=str)
     args.add_argument("--seed", type=int, default=42)
     args.add_argument("--max-train-steps", type=int, default=-1)
-    args.add_argument("--warmup-steps", type=int, default=100)
-    args.add_argument("--learning-rate", type=float, default=3e-4)
+    args.add_argument("--warmup-steps", type=int, default=100) # use ratio instead
+    args.add_argument("--warmup-ratio", type=float, default=0.01)
+    args.add_argument("--learning-rate", type=float, default=6e-4)
     args.add_argument("--grad-norm", action="store_true")
     args.add_argument("--model", type=str,
                       default="pythia-160m-deduped_mlkv")
