@@ -105,16 +105,16 @@ def main(args):
         # eval_dataset=None,
     )
 
-    trainer.train()
+    trainer.train(resume_from_checkpoint=args.resume_from_checkpoint)
     trainer.save_model(args.output_dir)
-    # trainer.push_to_hub()
+    trainer.push_to_hub()
 
 
 if __name__ == "__main__":
     args = argparse.ArgumentParser()
     args.add_argument("--batch-size", type=int, default=16)
     args.add_argument("--gradient-accumulate-every", type=int, default=4)
-    args.add_argument("--resume-from-checkpoint", type=str)
+    args.add_argument("--resume-from-checkpoint", action="store_true")
     args.add_argument("--checkpointing-steps", type=int)
     args.add_argument("--output-dir", type=str, required=True)
     args.add_argument("--wandb", type=str)
@@ -128,7 +128,7 @@ if __name__ == "__main__":
                       default="pythia-160m-deduped_mlkv")
     args.add_argument("--truncate", type=int, default=None)
     args.add_argument("--dataset", type=str,
-                      default="zaydzuhri/the_pile_tokenized_5percent_truncated_packed")
+                      default="zaydzuhri/the_pile_tokenized_5percent_truncated_packed_v2")
     args.add_argument("--deepspeed", action="store_true")
     args.add_argument("--num-proc", type=int, default=32)
     args.add_argument("--lr-schedule", type=str,
