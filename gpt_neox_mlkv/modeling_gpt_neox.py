@@ -111,8 +111,12 @@ class GPTNeoXAttention(nn.Module):
         self.norm_factor = torch.sqrt(torch.tensor(self.head_size, dtype=torch.float32)).to(torch.get_default_dtype())
         self.query = nn.Linear(config.hidden_size, self.head_size * self.num_attention_heads)
         if self.has_kv:
-            self.key = nn.Linear(config.hidden_size, self.head_size * self.num_key_value_heads)
-            self.value = nn.Linear(config.hidden_size, self.head_size * self.num_key_value_heads)
+            if config.use_key_value_mlp:
+                self.key = KeyValueMLP(config.hidden_size, config.kv_intermediate_size, self.head_size * self.num_key_value_heads, config.hidden_act)
+                self.value = KeyValueMLP(config.hidden_size, config.kv_intermediate_size, self.head_size * self.num_key_value_heads, config.hidden_act)
+            else:
+                self.key = nn.Linear(config.hidden_size, self.head_size * self.num_key_value_heads)
+                self.value = nn.Linear(config.hidden_size, self.head_size * self.num_key_value_heads)
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
 
     def forward(
@@ -188,7 +192,7 @@ class GPTNeoXAttention(nn.Module):
         value = repeat_kv(value, self.num_key_value_groups)
 
         # print("head_mask dtype", head_mask.dtype)
-        attn_output, attn_weights = self._attn(query.to(value.dtype), key.to(value.dtype), value, attention_mask, head_mask)
+        attn_output, attn_weights = self._attn(query, key, value, attention_mask, head_mask)
 
         # Reshape outputs
         attn_output = self._merge_heads(attn_output, self.num_attention_heads, self.head_size)
@@ -333,7 +337,19 @@ class GPTNeoXMLP(nn.Module):
         hidden_states = self.act(hidden_states)
         hidden_states = self.dense_4h_to_h(hidden_states)
         return hidden_states
+    
+class KeyValueMLP(nn.Module):
+    def __init__(self, in_dim, hidden_dim, out_dim, hidden_act):
+        super().__init__()
+        self.dense_in = nn.Linear(in_dim, hidden_dim)
+        self.dense_out = nn.Linear(hidden_dim, out_dim)
+        self.act = ACT2FN[hidden_act]
 
+    def forward(self, hidden_states):
+        hidden_states = self.dense_in(hidden_states)
+        hidden_states = self.act(hidden_states)
+        hidden_states = self.dense_out(hidden_states)
+        return hidden_states
 
 class GPTNeoXLayer(nn.Module):
     def __init__(self, config, has_kv=True):

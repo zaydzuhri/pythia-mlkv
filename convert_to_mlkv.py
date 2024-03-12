@@ -7,17 +7,20 @@
 import torch
 import json
 import os
+import math
 import shutil
 from fire import Fire
+from gpt_neox_mlkv import GPTNeoXForCausalLM, GPTNeoXConfig
 
 def main(
     weights_path: str,
     num_key_value_layers: int,
     num_key_value_heads: int,
     output_path: str = None,
+    use_key_value_mlp: bool = False
 ):
     if output_path is None:
-        output_path = weights_path + "_mlkv_" + str(num_key_value_layers) + "_" + str(num_key_value_heads)
+        output_path = weights_path + "_mlkv_" + ("mlp_" if use_key_value_mlp else "") + str(num_key_value_layers) + "_" + str(num_key_value_heads)
         if not os.path.exists(output_path):
             os.mkdir(output_path)
     config = json.load(open(weights_path+"/config.json"))
@@ -79,7 +82,7 @@ def main(
             value_weight = state_dict[f"gpt_neox.layers.{i}.attention.value.weight"]
             value_bias = state_dict[f"gpt_neox.layers.{i}.attention.value.bias"]
             # those have shape [num_heads*head_size, hidden_size]
-            # need to get them to [num_key_value_heads*head_size, hidden_size, ] where num_key_value_heads < num_heads
+            # need to get them to [num_key_value_heads*head_size, hidden_size] where num_key_value_heads < num_heads
             # we can just average the weights
             key_weight = key_weight.view(config["num_attention_heads"], head_size, config["hidden_size"])
             key_bias = key_bias.view(config["num_attention_heads"], head_size)
@@ -100,7 +103,7 @@ def main(
             key_bias = new_key_bias
             value_weight = new_value_weight
             value_bias = new_value_bias
-            # reshape back to [hidden_size, head_size*num_key_value_heads]
+            # reshape back to [head_size*num_key_value_heads, hidden_size]
             key_weight = key_weight.view(config["num_key_value_heads"]*head_size, config["hidden_size"])
             key_bias = key_bias.view(config["num_key_value_heads"]*head_size)
             value_weight = value_weight.view(config["num_key_value_heads"]*head_size, config["hidden_size"])
@@ -159,39 +162,90 @@ def main(
     num_params_lost = num_heads_lost * (config['hidden_size'] * head_size * 2 + head_size * 2)
     print("num_params_lost:", num_params_lost)
     num_params_needed_layer = num_params_lost // config['num_hidden_layers']
-    # now we need to upsize the intermediate layers of the MLPs by some amount
-    # calculate the closest multiple of hidden_size that is nearest to the number of parameters lost
-    # this is the amount we need to increase the intermediate size by
-    intermediate_addition = int(round(num_params_needed_layer / config['hidden_size']))
-    # add the intermediate_addition to the intermediate_size
-    old_intermediate_size = config['intermediate_size']
-    config['intermediate_size'] += intermediate_addition // 2 # there are 2 layers in the MLP
-    print("intermediate_size increased by", intermediate_addition // 2)
-    # initialize larger intermediate weights and biases, then put the old weights and biases in a slice of them
-    if intermediate_addition == 0:
-        print("intermediate_addition == 0, skipping intermediate layer upsizing")
+    if not use_key_value_mlp:
+        # now we need to upsize the intermediate layers of the MLPs by some amount
+        # calculate the closest multiple of hidden_size that is nearest to the number of parameters lost
+        # this is the amount we need to increase the intermediate size by
+        intermediate_addition = int(round(num_params_needed_layer / config['hidden_size']))
+        # add the intermediate_addition to the intermediate_size
+        old_intermediate_size = config['intermediate_size']
+        config['intermediate_size'] += intermediate_addition // 2 # there are 2 layers in the MLP
+        print("intermediate_size increased by", intermediate_addition // 2)
+        # initialize larger intermediate weights and biases, then put the old weights and biases in a slice of them
+        if intermediate_addition == 0:
+            print("intermediate_addition == 0, skipping intermediate layer upsizing")
+        else:
+            for i in range(num_layers):
+                # get the weights
+                intermediate_weight_in = state_dict[f"gpt_neox.layers.{i}.mlp.dense_h_to_4h.weight"]
+                intermediate_weight_out = state_dict[f"gpt_neox.layers.{i}.mlp.dense_4h_to_h.weight"]
+                intermediate_bias_in = state_dict[f"gpt_neox.layers.{i}.mlp.dense_h_to_4h.bias"]
+                # initialize new weights and biases
+                intermediate_weight_in_new = torch.zeros(config['intermediate_size'], config['hidden_size'])
+                intermediate_weight_out_new = torch.zeros(config['hidden_size'], config['intermediate_size'])
+                intermediate_bias_in_new = torch.zeros(config['intermediate_size'])
+                # put the old weights and biases in the new ones
+                intermediate_weight_in_new[:old_intermediate_size,:] = intermediate_weight_in
+                intermediate_weight_out_new[:,:old_intermediate_size] = intermediate_weight_out
+                intermediate_bias_in_new[:old_intermediate_size] = intermediate_bias_in
+                # fill zeros with some part of the old weights and biases
+                intermediate_weight_in_new[old_intermediate_size:, :] = intermediate_weight_in[:(config['intermediate_size']-old_intermediate_size), :]
+                intermediate_weight_out_new[:, old_intermediate_size:] = intermediate_weight_out[:, :(config['intermediate_size']-old_intermediate_size)]
+                intermediate_bias_in_new[old_intermediate_size:] = intermediate_bias_in[:(config['intermediate_size']-old_intermediate_size)]
+                # save them
+                state_dict[f"gpt_neox.layers.{i}.mlp.dense_h_to_4h.weight"] = intermediate_weight_in_new
+                state_dict[f"gpt_neox.layers.{i}.mlp.dense_4h_to_h.weight"] = intermediate_weight_out_new
+                state_dict[f"gpt_neox.layers.{i}.mlp.dense_h_to_4h.bias"] = intermediate_bias_in_new
     else:
-        for i in range(num_layers):
-            # get the weights
-            intermediate_weight_in = state_dict[f"gpt_neox.layers.{i}.mlp.dense_h_to_4h.weight"]
-            intermediate_weight_out = state_dict[f"gpt_neox.layers.{i}.mlp.dense_4h_to_h.weight"]
-            intermediate_bias_in = state_dict[f"gpt_neox.layers.{i}.mlp.dense_h_to_4h.bias"]
-            # initialize new weights and biases
-            intermediate_weight_in_new = torch.zeros(config['intermediate_size'], config['hidden_size'])
-            intermediate_weight_out_new = torch.zeros(config['hidden_size'], config['intermediate_size'])
-            intermediate_bias_in_new = torch.zeros(config['intermediate_size'])
-            # put the old weights and biases in the new ones
-            intermediate_weight_in_new[:old_intermediate_size,:] = intermediate_weight_in
-            intermediate_weight_out_new[:,:old_intermediate_size] = intermediate_weight_out
-            intermediate_bias_in_new[:old_intermediate_size] = intermediate_bias_in
-            # fill zeros with some part of the old weights and biases
-            intermediate_weight_in_new[old_intermediate_size:, :] = intermediate_weight_in[:(config['intermediate_size']-old_intermediate_size), :]
-            intermediate_weight_out_new[:, old_intermediate_size:] = intermediate_weight_out[:, :(config['intermediate_size']-old_intermediate_size)]
-            intermediate_bias_in_new[old_intermediate_size:] = intermediate_bias_in[:(config['intermediate_size']-old_intermediate_size)]
+        config['use_key_value_mlp'] = True
+        # If we're replacing linear key value projections with MLPs, we need to create new weights and biases for them
+        # These MLPs will have the names gpt_neox.layers.{i}.attention.key.dense_in and gpt_neox.layers.{i}.attention.key.dense_out with weights and biases. same for value
+        # initialize new weights and biases (with proper initiliazation because we might not be able to fill them with the old weights and biases)
+        # but first we need to calculate the intermediate size of the new MLPs so that we can make up for the lost parameters
+        num_params_needed_kv_layer = (num_params_lost // config['num_key_value_layers']) // 2 # there are key and value
+        # we have one linear projection with size [num_key_value_heads*head_size, hidden_size] for key and value
+        # the MLP will have 2 linear layers with size [mlp_intermediate_size, hidden_size] and [num_key_value_heads*head_size, mlp_intermediate_size] 
+        # to simplify the calculation, add the already available parameters to the needed parameters so that we can count the MLP parameters from scratch
+        num_params_needed_kv_layer += config['num_key_value_heads']*head_size*config['hidden_size']
+        # for every 1 MLP intermediate size, we get hidden_size + (num_key_value_heads*head_size) parameters
+        # get the closest multiple of that to the number of parameters needed
+        multiplier = (config['hidden_size'] + (config['num_key_value_heads']*head_size))
+        mlp_intermediate_size = int(round(num_params_needed_kv_layer / multiplier))
+        print("KV MLP intermediate size:", mlp_intermediate_size)
+        config['kv_intermediate_size'] = mlp_intermediate_size
+        for i in key_value_layers:
+            key_weight_in = torch.empty(mlp_intermediate_size, config['hidden_size'])
+            key_weight_out = torch.empty(config["num_key_value_heads"]*head_size, mlp_intermediate_size)
+            key_bias_in = torch.empty(mlp_intermediate_size).uniform_(-1, 1)
+            key_bias_out = torch.empty(config["num_key_value_heads"]*head_size).uniform_(-1, 1)
+            value_weight_in = torch.empty(mlp_intermediate_size, config['hidden_size'])
+            value_weight_out = torch.empty(config["num_key_value_heads"]*head_size, mlp_intermediate_size)
+            value_bias_in = torch.empty(mlp_intermediate_size).uniform_(-1, 1)
+            value_bias_out = torch.empty(config["num_key_value_heads"]*head_size).uniform_(-1, 1)
+            # Initilialize them with nn.init.kaiming_uniform_
+            torch.nn.init.kaiming_uniform_(key_weight_in, a=math.sqrt(5))
+            torch.nn.init.kaiming_uniform_(key_weight_out, a=math.sqrt(5))
+            torch.nn.init.kaiming_uniform_(value_weight_in, a=math.sqrt(5))
+            torch.nn.init.kaiming_uniform_(value_weight_out, a=math.sqrt(5))
+            # Put in the old weights in the first neurons of the first layer, just because we can
+            key_weight_in[:config['num_key_value_heads']*head_size, :] = state_dict[f"gpt_neox.layers.{i}.attention.key.weight"]
+            value_weight_in[:config['num_key_value_heads']*head_size, :] = state_dict[f"gpt_neox.layers.{i}.attention.value.weight"]
+            key_bias_in[:config['num_key_value_heads']*head_size] = state_dict[f"gpt_neox.layers.{i}.attention.key.bias"]
+            value_bias_in[:config['num_key_value_heads']*head_size] = state_dict[f"gpt_neox.layers.{i}.attention.value.bias"]
             # save them
-            state_dict[f"gpt_neox.layers.{i}.mlp.dense_h_to_4h.weight"] = intermediate_weight_in_new
-            state_dict[f"gpt_neox.layers.{i}.mlp.dense_4h_to_h.weight"] = intermediate_weight_out_new
-            state_dict[f"gpt_neox.layers.{i}.mlp.dense_h_to_4h.bias"] = intermediate_bias_in_new
+            state_dict[f"gpt_neox.layers.{i}.attention.key.dense_in.weight"] = key_weight_in
+            state_dict[f"gpt_neox.layers.{i}.attention.key.dense_out.weight"] = key_weight_out
+            state_dict[f"gpt_neox.layers.{i}.attention.key.dense_in.bias"] = key_bias_in
+            state_dict[f"gpt_neox.layers.{i}.attention.key.dense_out.bias"] = key_bias_out
+            state_dict[f"gpt_neox.layers.{i}.attention.value.dense_in.weight"] = value_weight_in
+            state_dict[f"gpt_neox.layers.{i}.attention.value.dense_out.weight"] = value_weight_out
+            state_dict[f"gpt_neox.layers.{i}.attention.value.dense_in.bias"] = value_bias_in
+            state_dict[f"gpt_neox.layers.{i}.attention.value.dense_out.bias"] = value_bias_out
+            # delete the old linear weights
+            del state_dict[f"gpt_neox.layers.{i}.attention.key.weight"]
+            del state_dict[f"gpt_neox.layers.{i}.attention.key.bias"]
+            del state_dict[f"gpt_neox.layers.{i}.attention.value.weight"]
+            del state_dict[f"gpt_neox.layers.{i}.attention.value.bias"]
 
     # save the new weights
     torch.save(state_dict, output_path+"/pytorch_model.bin")
@@ -202,6 +256,11 @@ def main(
     for file in files:
         if file not in ["config.json", "pytorch_model.bin"]:
             shutil.copyfile(weights_path+"/"+file, output_path+"/"+file)
+
+    # check total number of parameters
+    model = GPTNeoXForCausalLM.from_pretrained(output_path)
+    total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print("Final parameter count:", total_params)
 
 if __name__ == "__main__":
     Fire(main)

@@ -91,7 +91,11 @@ class GPTNeoXConfig(PretrainedConfig):
         hidden_size=6144,
         num_hidden_layers=44,
         num_attention_heads=64,
+        num_key_value_heads=64,
+        num_key_value_layers=44,
+        use_key_value_mlp=False,
         intermediate_size=24576,
+        kv_intermediate_size=24576,
         hidden_act="gelu",
         rotary_pct=0.25,
         rotary_emb_base=10000,
@@ -111,7 +115,11 @@ class GPTNeoXConfig(PretrainedConfig):
         self.hidden_size = hidden_size
         self.num_hidden_layers = num_hidden_layers
         self.num_attention_heads = num_attention_heads
+        self.num_key_value_heads = num_key_value_heads
+        self.num_key_value_layers = num_key_value_layers
+        self.use_key_value_mlp = use_key_value_mlp
         self.intermediate_size = intermediate_size
+        self.kv_intermediate_size = kv_intermediate_size
         self.hidden_act = hidden_act
         self.rotary_pct = rotary_pct
         self.rotary_emb_base = rotary_emb_base
