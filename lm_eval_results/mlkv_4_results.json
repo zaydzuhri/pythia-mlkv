@@ -1,36 +1,36 @@
 {
   "results": {
     "arc_easy": {
-      "acc,none": 0.4019360269360269,
-      "acc_stderr,none": 0.010060521220920566,
-      "acc_norm,none": 0.36574074074074076,
-      "acc_norm_stderr,none": 0.009882988069418838,
+      "acc,none": 0.40025252525252525,
+      "acc_stderr,none": 0.010053550119896136,
+      "acc_norm,none": 0.369949494949495,
+      "acc_norm_stderr,none": 0.009906656266021144,
       "alias": "arc_easy"
     },
     "boolq": {
-      "acc,none": 0.5614678899082569,
-      "acc_stderr,none": 0.008678720482001875,
+      "acc,none": 0.4724770642201835,
+      "acc_stderr,none": 0.008731795956847548,
       "alias": "boolq"
     },
     "lambada_openai": {
-      "perplexity,none": 91.2405240063229,
-      "perplexity_stderr,none": 4.026142664972999,
-      "acc,none": 0.2674170386182806,
-      "acc_stderr,none": 0.006166447198745348,
+      "perplexity,none": 126.22606979204883,
+      "perplexity_stderr,none": 5.7435346405463665,
+      "acc,none": 0.23636716475839317,
+      "acc_stderr,none": 0.00591899458775096,
       "alias": "lambada_openai"
     },
     "piqa": {
-      "acc,none": 0.6109902067464635,
-      "acc_stderr,none": 0.011374774974447466,
-      "acc_norm,none": 0.6191512513601741,
-      "acc_norm_stderr,none": 0.011329743189016752,
+      "acc,none": 0.6017410228509249,
+      "acc_stderr,none": 0.011421759697788993,
+      "acc_norm,none": 0.6039173014145811,
+      "acc_norm_stderr,none": 0.011411089031912477,
       "alias": "piqa"
     },
     "sciq": {
-      "acc,none": 0.697,
-      "acc_stderr,none": 0.014539683710535248,
-      "acc_norm,none": 0.609,
-      "acc_norm_stderr,none": 0.015438826294681776,
+      "acc,none": 0.654,
+      "acc_stderr,none": 0.015050266127564433,
+      "acc_norm,none": 0.583,
+      "acc_norm_stderr,none": 0.015599819048769618,
       "alias": "sciq"
     }
   },
@@ -215,7 +215,7 @@
   },
   "config": {
     "model": "hf",
-    "model_args": "pretrained=faridlazuarda/pythia-160m-mqa-12-b12-g2-v1,backend=mlkv,revision=master",
+    "model_args": "pretrained=faridlazuarda/pythia-160m-mlkv-4-b12-g2-v1,backend=mlkv,revision=master",
     "batch_size": "32",
     "batch_sizes": [],
     "device": "cuda:0",

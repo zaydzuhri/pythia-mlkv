@@ -99,7 +99,7 @@ def main(
     model_name,
     mlkv=False,
     # batch_sizes=[8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 96],
-    batch_sizes=[8, 16, 24, 32, 40, 48, 64, 80, 100, 140, 220, 300, 380, 460, 620, 780, 940, 1100],
+    batch_sizes=[8, 16, 24, 32, 40, 48, 64, 80, 100, 140, 220, 300, 380, 460, 620, 720, 940, 1100],
     sequence_length=48,
     prefill_length=2000,
     log_file=None,
